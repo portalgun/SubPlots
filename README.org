@@ -1,0 +1,7 @@
+* Subplots
+I want to plot a lot of something with a lot of regularity, with minimal configuration, and I want it to look nice.
+I want a supertitle/sgtitle, row and column labels. 
+I want my subplots to be tight and hide labels when they are redundant.
+I want to change properties for each subplot using a single parameter.
+
+Requires panel.m by Ben Mitch
