@@ -1,4 +1,4 @@
-classdef subPlots < handle
+classdef SubPlots < handle
 % TODO
 % R labels messed up with resizing
 % SUBPLOT SIZE
@@ -37,6 +37,8 @@ properties
     % ticks
     bHideYticks
     bHideXticks
+    bHideYtickLabels
+    bHideXtickLabels
     xtickAngle
     ytickAngle
     xtickFormat
@@ -56,8 +58,6 @@ properties
     bClimsFromData
 
     % labels
-    bHideYlabel
-    bHideXlabel
 
     %fonts
     fontsize
@@ -72,7 +72,6 @@ properties
 
     ax
     position
-    bItitl% XXX ?
 
     xscale
     yscale
@@ -96,6 +95,10 @@ properties(Hidden = true)
     ylimsall
     climsall
 
+    xlimstmp
+    ylimstmp
+    bItitl
+    bIndTitl
     bYtitl
     bXtitl
     bTitl
@@ -111,7 +114,7 @@ properties(Hidden = true)
     right
 end
 methods
-    function obj = subPlots(RC,xtitl,ytitl,titl,rtitl,ctitl,Opts)
+    function obj = SubPlots(RC,xtitl,ytitl,titl,rtitl,ctitl,Opts)
         % NOTE IF PROBLEM WITH GCF AXIS, REMOVE HOLD OFF
         if ~exist('Opts','var') || isempty(Opts)
             Opts=struct();
@@ -119,54 +122,58 @@ methods
 
         obj.nRows=RC(1);
         obj.nCols=RC(2);
-        obj.RC=distribute(1:obj.nRows,1:obj.nCols);
+        obj.RC=Set.distribute(1:obj.nRows,1:obj.nCols);
 
-        p=inputParser();
-        p.addParameter('xtickFormat',[]);
-        p.addParameter('ytickFormat',[]);
-        p.addParameter('xtickAngle',0);
-        p.addParameter('ytickAngle',0);
-        p.addParameter('bYsci',[]);
-        p.addParameter('bXsci',[]);
-        p.addParameter('ylim',[]);
-        p.addParameter('xlim',[]);
-        p.addParameter('clim',[]);
-        p.addParameter('ylimSpace',[]);
-        p.addParameter('xlimSpace',[]);
-        p.addParameter('xlimRCBN','C');
-        p.addParameter('ylimRCBN','R');
-        p.addParameter('climRCBN','N');
-        p.addParameter('bYlimsFromData',0);
-        p.addParameter('bXlimsFromData',0);
-        p.addParameter('bClimsFromData',0);
-        p.addParameter('xticks',[]);
-        p.addParameter('yticks',[]);
-        p.addParameter('xtickLabels',[]);
-        p.addParameter('ytickLabels',[]);
-        p.addParameter('bHideXticks',[]);
-        p.addParameter('bHideYticks',[]);
-        p.addParameter('bHideXlabel',1);
-        p.addParameter('bHideYlabel',1);
-        p.addParameter('ax','manual');
-        p.addParameter('fontsize',18);
-        p.addParameter('fontsizeMain',25);
-        p.addParameter('margin',[]);
-        p.addParameter('marginMain',[]);
-        p.addParameter('marginDE',[]);
-        p.addParameter('clabelLoc','top');
-        p.addParameter('rlabelLoc',[]);
-        p.addParameter('bRotateRlabel',[]);
-        p.addParameter('position',[]);
-        p.addParameter('xscale',[]);
-        p.addParameter('yscale',[]);
-        p.addParameter('bImg',0);
 
-        p=parseStruct(Opts,p);
-        flds=fieldnames(p.Results);
-        for i = 1:length(flds)
-            fld=flds{i};
-            obj.(fld)=p.Results.(fld);
-        end
+
+        P={ ...
+            'xtickFormat',[] ...
+            ;'ytickFormat',[] ...
+            ;'xtickAngle',0 ...
+            ;'ytickAngle',0 ...
+            ;'bYsci',[] ...
+            ;'bXsci',[] ...
+            ;'ylim',[] ...
+            ;'xlim',[] ...
+            ;'clim',[] ...
+            ;'ylimSpace',[] ...
+            ;'xlimSpace',[] ...
+            ;'xlimRCBN','C' ...
+            ;'ylimRCBN','R' ...
+            ;'climRCBN','N' ...
+            ;'bYlimsFromData',0 ...
+            ;'bXlimsFromData',0 ...
+            ;'bClimsFromData',0 ...
+            ;'xticks',[] ...
+            ;'yticks',[] ...
+            ;'xtickLabels',[] ...
+            ;'ytickLabels',[] ...
+            ;'bHideXticks',[] ...
+            ;'bHideYticks',[] ...
+            ;'bHideXtickLabels',0 ...
+            ;'bHideYtickLabels',0 ...
+            ;'ax','manual' ...
+            ;'fontsize',18 ...
+            ;'fontsizeMain',25 ...
+            ;'margin',[] ...
+            ;'marginMain',[] ...
+            ;'marginDE',[] ...
+            ;'clabelLoc','top' ...
+            ;'rlabelLoc',[] ...
+            ;'bRotateRlabel',[] ...
+            ;'position',[] ...
+            ;'xscale',[] ...
+            ;'yscale',[] ...
+            ;'bImg',0 ...
+            ;'ititl',{} ...
+        };
+
+        p=Parse.byOpts(obj,Opts,P);
+        %flds=fieldnames(p.Results);
+        %for i = 1:length(flds)
+        %    fld=flds{i};
+        %    obj.(fld)=p.Results.(fld);
+        %end
 
         %%-----------------------------
         %% DEFAULTS
@@ -230,9 +237,10 @@ methods
             obj.ytitl=ytitl;
             obj.bYtitl=1;
         end
+
         obj.bCtitl=exist('ctitl','var') && iscell(ctitl) && any(size(ctitl)==obj.nCols) && any(any(cellfun(@(x) ~isempty(x),ctitl)));
         obj.bRtitl=exist('rtitl','var') && iscell(rtitl) && any(size(rtitl)==obj.nRows) && any(any(cellfun(@(x) ~isempty(x),rtitl)));
-        obj.bItitl=exist('ititl','var') && iscell(ititl) && isequal(size(ititl),[obj.nRows obj.nCols]) && any(cellfun(@(x) ~isempty(x),ititl));
+        obj.bItitl=iscell(obj.ititl) && (isequal(size(obj.ititl),[obj.nRows obj.nCols]) || size(obj.ititl,1)==obj.nRows*obj.nCols);
 
         obj.bRtitlEach=0;
         if obj.bRtitl && isequal(size(rtitl),[obj.nCols obj.nRows])
@@ -244,9 +252,6 @@ methods
         end
         if obj.bRtitl
             obj.rtitl=rtitl;
-        end
-        if obj.bItitl
-            obj.ititl=ititl;
         end
 
         obj.ha=panel();
@@ -390,14 +395,18 @@ methods
         end
 
     end
-    function obj=apply_xticks(obj)
+    function obj=apply_xticks(obj,r,c)
 
-        if ~isempty(obj.xticks)
+        if ~isempty(obj.xticks) && iscell(obj.xticks) && length(obj.xticks)==obj.nRows
+            set(gca,'Xtick',obj.xticks{r});
+        elseif ~isempty(obj.xticks) && iscell(obj.xticks) && length(obj.xticks)==obj.nCols
+            set(gca,'Xtick',obj.xticks{c});
+        elseif ~isempty(obj.xticks)
             set(gca,'Xtick',obj.xticks);
-        elseif obj.bHideXticks
+        elseif obj.bHideXticks && r~=obj.nRows
             set(gca,'Xtick',[]);
         else
-            set(gca,'XTickMode', 'auto')
+            set(gca,'XTickMode', 'auto');
         end
 
     end
@@ -408,19 +417,25 @@ methods
         elseif obj.bHideXticks
             set(gca,'Ytick',[]);
         else
-            set(gca,'YTickMode', 'auto')
+            set(gca,'YTickMode', 'auto');
             g=gca;
             obj.yextent=g.YLabel.Extent(1);
         end
 
     end
-    function obj=apply_xtickLabels(obj,r)
-        if r~=obj.nRows && obj.bHideXticks
+    function obj=apply_xtickLabels(obj,r,c)
+        %if obj.bHideXtickLabels || (r~=obj.nRows && obj.bHideXticks)
+        if obj.bHideXticks || (r~=obj.nRows && obj.bHideXtickLabels)
             set(gca,'XtickLabel','');
             return
         elseif isempty(obj.xtickLabels)
             set(gca, 'XTickLabelMode', 'auto');
-        else
+        elseif ~isempty(obj.xtickLabels) && iscell(obj.xtickLabels) && length(obj.xtickLabels)==obj.nRows
+            set(gca,'XtickLabel',obj.xtickLabels{r});
+            33
+        elseif ~isempty(obj.xtickLabels) && iscell(obj.xtickLabels) && length(obj.xtickLabels)==obj.nCols
+            set(gca,'XtickLabel',obj.xtickLabels{c});
+        elseif  ~isempty(obj.xtickLabels)
             set(gca,'XtickLabel',obj.xtickLabels);
         end
         if ~isempty(obj.xtickFormat)
@@ -429,7 +444,7 @@ methods
         xtickangle(gca,obj.xtickAngle);
     end
     function obj=apply_ytickLabels(obj,c)
-        if c~=1 && obj.bHideYticks
+        if obj.bHideYtickLabels || (c~=1 && obj.bHideYticks)
             set(gca,'YtickLabel','');
             return
         elseif isempty(obj.ytickLabels)
@@ -673,10 +688,10 @@ methods
         end
 
         if ~isempty(obj.xlimSpace)
-            xlims=getLims(xlims,obj.xlimSpace);
+            xlims=Axis.getLims(xlims,obj.xlimSpace);
         end
         if ~isempty(obj.ylimSpace)
-            ylims=getLims(ylims,obj.ylimSpace);
+            ylims=Axis.getLims(ylims,obj.ylimSpace);
         end
 
         if ~isempty(xlims)
@@ -689,6 +704,8 @@ methods
             caxis(clims);
             %set(gca,'clim',clims);
         end
+        obj.xlimstmp=xlims;
+        obj.ylimstmp=ylims;
     end
     function obj=apply_titles(obj)
         %obj.select(1);
@@ -751,10 +768,11 @@ methods
             obj.apply_axis; % XXX
             obj.apply_rc_labels(r,c);
 
-            obj.apply_xticks();
-            obj.apply_xtickLabels(r);
+            obj.apply_xticks(r,c);
+            obj.apply_xtickLabels(r,c);
             obj.apply_yticks();
             obj.apply_ytickLabels(c);
+            obj.apply_ititl(r,c);
 
             if obj.bImg
                 colormap gray;
@@ -772,6 +790,24 @@ methods
         %    obj.rotate_r_labels();
         %end
         drawnow
+    end
+    function obj=apply_ititl(obj,r,c)
+        if ~obj.bItitl
+            return
+        end
+        if size(obj.ititl,2)==1
+            ind=sub2ind([obj.nRows,obj.nCols],r,c);
+            ititl=obj.ititl{ind};
+        else
+            ititl=obj.ititl{r,c};
+        end
+        fs=[];
+        rotDeg=[];
+        hPos=[];
+        vPos=[];
+        textColor=[];
+        zPositions=[];
+        SubPlots.writeText(.1,.9,{ititl},fs,hPos,rotDeg,vPos,textColor,zPositions,obj.xlimstmp,obj.ylimstmp);
     end
     function obj=apply_scale(obj)
         if ~isempty(obj.xscale)
@@ -869,6 +905,104 @@ methods
         end
         set(T,'Position',p);
     end
+end
+methods(Static)
+    function Axis.writeText(xPositions,yPositions,txtStrings,fs,hPos,rotDeg,vPos,textColor,zPositions,xlims,ylims)
+
+        % function Axis.writeText(xPositions,yPositions,txtStrings,ratioORabs,fs,hPos,rotDeg,vPos,textColor,zPositions)
+        %
+        %   example call: Axis.writeText(.1,.9,{['R^{2} = .5']})
+        %
+        % writes txtStrings at specified location in figure window
+        %
+        % xPositions: scalar between 0 and 1 that determines position text will
+        %             appear in x (1xn)
+        % yPositions: scalar between 0 and 1 that determines position text will
+        %             appear in y (1xn)
+        % txtStrings: cell array of strings that get written at location
+        %             (xPositions,yPositions,zPositions)
+        % ratioORabs: indicates whether xPositions & yPositions indicate text
+        %             position in the current window as percentage of window size or in
+        %             absolute x or y positions
+        % fs:         fontsize
+        % hPos:      'left','center', 'right' alignment
+        % rotDeg:     orientation of text in degrees
+        % vPos:       'top', 'bottom', 'middle'
+        % textColor:  default: black, [0 0 0]
+        % zPositions:
+
+        if (length(xPositions) ~= length(yPositions) | length(xPositions) ~= length(txtStrings))
+            error('writeText: all three variables [xPositions,yPositions,txtStrings] must have same number of elements');
+        end
+        if (~iscell(txtStrings))
+            error('writeText: txtStrings must be of type cell');
+        end
+        if (~exist('fs','var') || isempty(fs))
+            fs = 18;
+        end
+        if ~exist('hPos','var') || isempty(hPos)
+            hPos = 'left';
+        end
+        if ~exist('vPos','var') || isempty(vPos)
+            vPos = 'middle';
+        end
+        if (~exist('rotDeg','var') || isempty(rotDeg))
+            rotDeg = 0;
+        end
+        if ~exist('textColor','var') || isempty(textColor)
+            textColor = [ 0 0 0];
+        end
+        if ~exist('zPositions','var') || isempty(zPositions)
+            zPositions = .5*ones(size(xPositions));
+        end
+        % GET AXIS LIMITS
+        if (~exist('xlims','var') || isempty(xlims)) && (~exist('ylims','var') || isempty(ylims))
+            [xlims,ylims] = SubPlots.get_lims_w;
+        elseif ~exist('xlims','var') || isempty(xlims)
+            [xlims,~] = SubPlots.get_lims_w;
+        elseif ~exist('ylims','var') || isempty(ylims)
+            [~,ylims] = SubPlots.get_lims_w;
+        end
+
+        xPos = xlims(1) + xPositions.*diff(xlims);
+        yPos = ylims(1) + yPositions.*diff(ylims);
+        zlims = get(gca,'zlim');
+        zPos = zlims(1) + zPositions.*diff(zlims);
+
+        % WRITE TEXT AT INDICATED POSITIONS
+        for (s = 1:length(txtStrings))
+            text(xPos(s),yPos(s),zPos(s),txtStrings{s},'HorizontalAlignment',hPos,'VerticalAlignment',vPos,'fontsize',fs,'rotation',rotDeg,'color',textColor);
+        end
+    end
+
+
+    function [xlims ylims zlims] = get_lims_w(dim)
+
+        % function [xlims ylims zlims] = Axis.getLims(dim)
+        %
+        %   x, y, and z axis limits of gca
+        %
+        % dim: 1 -> returns x lims,
+        %      2 -> returns y lims,
+        %      3 -> returns z lims
+        %      [] or ~exist -> returns xlims, ylims, and zlims
+
+        if nargin < 1
+            dim = 1;
+        end
+        if dim == 1
+            xlims = [min(get(gca,'xlim')) max(get(gca,'xlim'))];
+            ylims = [min(get(gca,'ylim')) max(get(gca,'ylim'))];
+            zlims = [min(get(gca,'zlim')) max(get(gca,'zlim'))];
+        elseif dim == 2
+            xlims = [min(get(gca,'ylim')) max(get(gca,'ylim'))];
+        elseif dim == 3
+            xlims = [min(get(gca,'zlim')) max(get(gca,'zlim'))];
+        else
+            error(['Axis.getLims: dim value (' num2str(dim) ') invalid']);
+        end
+    end
+
 
 end
 end
